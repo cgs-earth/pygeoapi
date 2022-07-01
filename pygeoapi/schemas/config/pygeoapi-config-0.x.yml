@@ -31,6 +31,9 @@ properties:
             encoding:
                 type: string
                 description: default server encoding
+            admin:
+                type: boolean
+                description: include admin interface
             gzip:
                 type: boolean
                 description: default server config to gzip/compress responses to requests with gzip in the Accept-Encoding header
@@ -390,10 +393,10 @@ properties:
                                               - x_field
                                               - y_field
                                       time_field:
-                                          type: string
+                                          type: [string, 'null']
                                           description: optional field corresponding to the temporal property of the dataset
                                       title_field:
-                                          type: string
+                                          type: [string, 'null']
                                           description: optional field of which property to display as title/label on HTML pages
                                       format:
                                           type: object
@@ -420,7 +423,7 @@ properties:
                                           description: only return the following properties, in order
                                           items:
                                               type: string
-                                          minItems: 1
+                                          minItems: 0
                                           uniqueItems: true
                                   required:
                                       - type

@@ -2,6 +2,7 @@ Babel
 click>7,<=8
 Flask
 future-annotations
+Flask-Login
 jinja2==3.0.3
 jsonschema
 pydantic
@@ -16,3 +17,4 @@ requests
 shapely<2.0
 tinydb
 unicodecsv
+werkzeug==2.0.3

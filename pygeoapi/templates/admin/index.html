@@ -1,0 +1,168 @@
+{% extends "_base.html" %}
+{% block title %} Admin {% endblock %}
+
+{% block extrahead %}
+<link href="https://cdn.jsdelivr.net/npm/@mdi/font@4.x/css/materialdesignicons.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/vue@2.x/dist/vue.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+{% endblock %}
+
+{% block body %}
+<div id="app" data-app>
+
+  <v-alert v-model="alert" prominent outlined close-text="Close Alert" :type="al.status" dismissable>
+    <v-row align-center>
+      <v-col class="grow">
+        <strong v-html="al.path"></strong>
+        <br>
+        <strong v-html="al.msg"></strong>
+      </v-col>
+      <v-col class="shrink">
+        <v-btn
+          icon
+          fab
+          depressed
+          right
+          @click="alert = false"
+        >
+          <v-icon> mdi-close </v-icon>
+        </v-btn>
+      </v-col>
+    </v-row>
+  </v-alert>
+
+  <v-main>
+    <v-responsive class="mx-auto" width="90%" max-width="1130">
+      <v-container>
+        <v-tabs v-model="tab">
+          <v-tab v-for="(val, key) in tree" :key="key" v-html="key"></v-tab>
+          <v-spacer></v-spacer>
+          <v-btn
+            @click="send(tree,'/admin/config')"
+            depressed
+            outlined
+            color="#0c6efd"
+          >
+            Apply Configuation
+          </v-btn>
+        </v-tabs>
+
+        <v-tabs-items v-model="tab">
+          <v-tab-item v-for="(val, key) in tree" :key="key">
+
+            <template v-if="key === 'resources'">
+              <resource-block :key="`tree.${key}`" :label="key" :vals="val" />
+            </template>
+            <template v-else>
+              <gui-block :key="`tree.${key}`" :label="key" :vals="val" />
+            </template>
+
+          </v-tab-item>
+        </v-tabs-items>
+
+      </v-container>
+    </v-responsive>
+  </v-main>
+</div>
+{% endblock %}
+
+{% block extrafoot %}
+{% include "admin/tree/guiblock.html" %}
+{% include "admin/tree/editableblock.html" %}
+{% include "admin/tree/resourceblock.html" %}
+{% include "admin/tree/addblock.html" %}
+
+<script>
+  const vue = new Vue({
+    el: '#app',
+    vuetify: new Vuetify(),
+    delimiters: ['[[', ']]'],
+    data: function () {
+      return {
+        tab: null,
+        alert: false,
+        al: {
+          msg: '',
+          path: '',
+          status: 'success'
+        },
+        tree: {{ config | to_json | safe }},
+        template: {{ data | to_json | safe }},
+        dialog: false,
+      }
+    },
+    computed: {
+      languages: function () {
+        const ret = {}
+        for (const lang of this.tree.server.languages) {
+          ret[lang.match(/([a-z]){2}/g)] = ''
+        }
+        return ret
+      }
+    },
+    watch: {
+      languages: function (langs) { // Soft push server languages
+        var meta = this.tree.metadata.identification
+        meta.title = this.pushLanguage(meta.title)
+        meta.description = this.pushLanguage(meta.description)
+        meta.keywords = this.pushLanguage(meta.keywords)
+
+        for (const resources of [this.tree.resources, this.template.resources]) {
+          for (const resource of Object.values(resources)) {
+            resource.title = this.pushLanguage(resource.title)
+            resource.description = this.pushLanguage(resource.description)
+            resource.keywords = this.pushLanguage(resource.keywords)
+          }
+        }
+      }
+    },
+    methods: {
+      capitalize: function (input, len) {
+        if (typeof input === 'string') {
+          return (input.slice(0, len).toUpperCase() + input.replaceAll("_", " ").slice(len))
+        }
+      },
+      isdict: function (input) {
+        return (input && typeof input === 'object' && !input.length)
+      },
+      islist: function (input) {
+        return (input != null && typeof input === 'object' && input.length >= 0)
+      },
+      copy: function (input) {
+        return JSON.parse(JSON.stringify(input))
+      },
+      pushLanguage: function (target) {
+        return Object.assign(this.copy(this.languages), target)
+      },
+      send: function (d, path, update) {
+        var self = this;
+        axios.post(path, data = d,)
+          .then(function (response) {
+            if (response.headers["content-type"] !== "application/json") {
+              throw 'Login required'
+            }
+            self.al.path = 'Success at ' + path
+            self.al.msg = response.data.msg
+            self.al.status = 'success'
+            self.alert = true
+          })
+          .catch(function (error) {
+            try {
+              var err = error.response.data
+              self.al.msg = err.msg
+            } catch (err) {
+              self.al.msg = error
+            }
+            self.al.path = 'Error at ' + path
+            self.al.status = 'error'
+            self.alert = true
+          });
+      },
+    },
+  })
+</script>
+{% endblock %}

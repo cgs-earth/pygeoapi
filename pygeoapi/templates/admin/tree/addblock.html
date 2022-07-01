@@ -1,0 +1,234 @@
+<script id="add-block" type="text/x-template">
+  <div class="add-block">
+    <v-row justify="center" >
+      <v-dialog v-model="dialog" scrollable width="75%">
+
+        <template v-slot:activator="{ on, attrs }">
+          <v-col>
+            <v-btn
+              class="mx-2"
+              depressed
+              outlined
+              color="#0c6efd"
+              rounded
+              v-bind="attrs"
+              v-on="on"
+            >
+              <v-icon>mdi-plus</v-icon> Add Resource
+            </v-btn>
+          </v-col>
+        </template>
+
+        <v-card>
+          <v-app-bar>
+            <v-btn text icon color="#B00020" @click="dialog = false">
+              <v-icon>mdi-close</v-icon>
+            </v-btn>
+          </v-app-bar>
+
+          <v-card-text style="height: 500px;" class="my-2">
+            <v-stepper alt-labels flat v-model="step" non-linear>
+              <v-sheet color="#2f6b9c" width="100%">
+                <v-stepper-header>
+                  <v-slide-group center-active value="step" class="mx-auto">
+                    <template v-for="(v,k,i) in new_val">
+                      <v-stepper-step
+                        v-if="i === 0"
+                        :complete="step > 0"
+                        :step="i"
+                        :key="i"
+                      >
+                        <span v-html="`Resource Name`"></span>
+                      </v-stepper-step>
+                      <v-stepper-step
+                        v-else
+                        :complete="step > i"
+                        :step="i"
+                        :key="i"
+                      >
+                        <span v-html="$root.capitalize(k,1)"></span>
+                      </v-stepper-step>
+                    </template>
+                  </v-slide-group>
+                </v-stepper-header>
+              </v-sheet>
+
+              <v-window v-model="step">
+                <template v-for="(v,k,i) in new_val">
+                  <v-window-item
+                    v-if="i === 0"
+                    :key="i"
+                  >
+                    <v-row justify="center">
+                      <v-col cols="12" md="4">
+                        <v-textarea
+                          v-model.trim="new_key"
+                          label="Resource Name"
+                          rows="1"
+                          reverse no-resize
+                        />
+                      </v-col>
+                      <v-col cols="12" md="4">
+                        <v-autocomplete
+                          v-model="resourceChoice"
+                          :items="resources"
+                          hint="Resource Type"
+                          auto-select-first
+                          reverse
+                          persistent-hint
+                        />
+                      </v-col>
+                      <v-col cols="12" md="4">
+                        <v-autocomplete
+                          :disabled="resourceChoice === null"
+                          v-model="providerChoice"
+                          :items="keys_show_"
+                          hint="Provider Type"
+                          reverse
+                          persistent-hint
+                        />
+                      </v-col>
+                    </v-row>
+                  </v-window-item>
+
+                  <v-window-item
+                    v-else-if="k === 'item_template'"
+                    :key="i"
+                  >
+                    <gui-block :vals="genVal(k, v)" label="Item template" :key="_key(k)" />
+                  </v-window-item>
+
+                  <v-window-item
+                    v-else
+                    :key="i"
+                  >
+                    <gui-block :vals="v" :label="k" :key="_key(k)" />
+                  </v-window-item>
+                </template>
+
+              </v-window>
+            </v-stepper>
+          </v-card-text>
+          <v-card-actions>
+            <v-btn
+              large
+              depressed
+              outlined
+              color="#0c6efd"
+              :disabled="step === 0"
+              @click="step -= 1"
+            >
+              Previous
+            </v-btn>
+            <v-spacer />
+            <v-btn
+              v-show="(step + 1) !== length(new_val)"
+              large
+              depressed
+              outlined
+              color="#0c6efd"
+              :disabled="providerChoice === null"
+              @click="step += 1"
+            >
+              Next
+            </v-btn>
+            <v-btn
+              large
+              depressed
+              outlined
+              color="#0c6efd"
+              v-show="(step + 1) === length(new_val)"
+              @click="saved"
+            >
+              Save
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+    </v-row>
+  </div>
+</script>
+
+<script>
+  Vue.component("AddBlock", {
+    props: ["vals", "label", "config"],
+    name: "AddBlock",
+    template: "#add-block",
+    data: function () {
+      return {
+        dialog: false,
+        step: 0,
+        vals_: Object.values(this.$root.copy(this.vals)),
+        keys_: Object.keys(this.$root.copy(this.vals)),
+        keys_show_: [],
+        resourceChoice: null,
+        providerChoice: null,
+        new_key: "",
+        new_val: Object.values(this.$root.copy(this.vals))[0],
+        item_template: {},
+        resources: ["collection", "process", "stac-collection"],
+      };
+    },
+    watch: {
+      providerChoice: function (c) {
+        this.new_val = Object.keys(this.vals).includes(c)
+          ? this.vals[c]
+          : this.new_val;
+      },
+      resourceChoice: function (re) {
+        if (!this.resources.includes(re)) {
+          this.resourceChoice = null;
+        } else {
+          var ks = new Set();
+          for (var i = 0; i < this.keys_.length; i++) {
+            if (this.vals_[i]["type"] === this.resourceChoice) {
+              ks.add(this.keys_[i]);
+            }
+          }
+          this.keys_show_ = [...ks.values()];
+        }
+      },
+      step: function (s) {
+        var i = Object.keys(this.new_val).indexOf('item_template')
+        if ((i + 1) === s) {
+          Object.assign(this.new_val, this.item_template);
+        }
+      },
+    },
+    methods: {
+      saved: function () {
+        if (this.new_key) {
+          this.config[this.new_key] = this.$root.copy(this.new_val);
+          this.new_key = "";
+          this.resourceChoice = null;
+          this.providerChoice = null;
+          this.step = 0;
+          this.closed();
+        }
+      },
+      length: function (obj) {
+        return Object.keys(obj).length;
+      },
+      closed: function () {
+        this.dialog = false;
+      },
+      _key: function (k) {
+        return this.$vnode.key + "." + k;
+      },
+      capitalize: function (input, len) {
+        if (typeof input === "string") {
+          return this.$root.capitalize(input, len);
+        } else {
+          var parent = this._key(input)
+            .match(/([a-z])+/g)
+            .pop();
+          return this.capitalize(parent, 1) + " [" + input + "]";
+        }
+      },
+      genVal: function (k, v) {
+        this.item_template[k] = v;
+        return this.item_template;
+      }
+    },
+  });
+</script>
